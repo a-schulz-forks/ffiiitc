@@ -28,9 +28,10 @@ type FireFlyHttpClient struct {
 
 // set of structs for firefly transaction json data
 type FireFlyTransaction struct {
-	Description   string `json:"description"`
-	Category      string `json:"category_name"`
-	TransactionID string `json:"transaction_journal_id"`
+	Description   string   `json:"description"`
+	Category      string   `json:"category_name"`
+	TransactionID string   `json:"transaction_journal_id"`
+	Tags          []string `json:"tags"`
 }
 
 type FireFlyTransactions struct {
@@ -125,6 +126,19 @@ func (fc *FireFlyHttpClient) UpdateTransactionCategory(id, category string) erro
 				Category:      category,
 			},
 		},
+	}
+
+	if category != "" {
+		trn = FireFlyTransactions{
+			FireWebHooks: false,
+			Transactions: []FireFlyTransaction{
+				{
+					TransactionID: id,
+					Category:      category,
+					Tags:          []string{"Automatically classified"},
+				},
+			},
+		}
 	}
 
 	//log.Printf("trn data: %v", trn)
