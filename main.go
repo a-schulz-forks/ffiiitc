@@ -65,11 +65,14 @@ func main() {
 	// add handlers
 	r.AddRoute("/classify", h.HandleNewTransactionWebHook)
 	r.AddRoute("/train", h.HandleForceTrainingModel)
+	r.AddRoute("/finetune", h.HandleFineTuneModel)
 	// temporary remove this handle
 	//r.AddRoute("/learn", h.HandleUpdateTransactionWebHook)
 
 	//run
-	err = r.Run(8080)
+	port := 8080
+	l.Logf("INFO starting server on port %d", port)
+	err = r.Run(port)
 	if err != nil {
 		panic(err)
 	}
