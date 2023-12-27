@@ -65,6 +65,7 @@ func main() {
 	// add handlers
 	r.AddRoute("/classify", h.HandleNewTransactionWebHook)
 	r.AddRoute("/train", h.HandleForceTrainingModel)
+	r.AddRoute("/finetune", h.HandleFineTuneModel)
 	// temporary remove this handle
 	//r.AddRoute("/learn", h.HandleUpdateTransactionWebHook)
 

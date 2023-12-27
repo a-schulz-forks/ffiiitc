@@ -5,6 +5,7 @@ import (
 	"ffiiitc/internal/classifier"
 	"ffiiitc/internal/config"
 	"ffiiitc/internal/firefly"
+	"github.com/navossoc/bayesian"
 
 	"net/http"
 	"strconv"
@@ -32,6 +33,10 @@ type FireFlyContent struct {
 
 type FireflyWebHook struct {
 	Content FireFlyContent `json:"content"`
+}
+
+type FineTuneBody struct {
+	Classes map[string][]string `json:"classes"`
 }
 
 func NewWebHookHandler(c *classifier.TrnClassifier, f *firefly.FireFlyHttpClient, l *lgr.Logger) *WebHookHandler {
@@ -107,6 +112,47 @@ func (wh *WebHookHandler) HandleForceTrainingModel(w http.ResponseWriter, r *htt
 			} else {
 				wh.Logger.Logf("INFO: forced training completed and model saved. Please restart 'ffiiitc' container")
 			}
+		}
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+// http handler for fine tuning model
+func (wh *WebHookHandler) HandleFineTuneModel(w http.ResponseWriter, r *http.Request) {
+
+	// only allow post method
+	if r.Method != http.MethodGet {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+
+	wh.Logger.Logf("INFO Received request to perform fine tune training")
+
+	// decode payload
+	decoder := json.NewDecoder(r.Body)
+	var postData FineTuneBody
+	err := decoder.Decode(&postData)
+	if err != nil {
+		http.Error(w, "bad data", http.StatusBadRequest)
+		return
+	}
+
+	wh.Logger.Logf("INFO data received")
+
+	cls := wh.Classifier
+	for cat, features := range postData.Classes {
+		wh.Logger.Logf("INFO fine tune: (cat: %s) (features: %v)", cat, features)
+		for _, feature := range features {
+			cls.Classifier.Learn([]string{feature}, bayesian.Class(cat))
+		}
+		wh.Logger.Logf("INFO fine tuning completed...")
+		wh.Logger.Logf("INFO saving data to model...")
+		err = cls.SaveClassifierToFile(config.ModelFile)
+		if err != nil {
+			wh.Logger.Logf("ERROR saving model to file:\n %v", err)
+		} else {
+			wh.Logger.Logf("INFO: fine tuning completed and model saved. Please restart 'ffiiitc' container")
 		}
 	}
 
