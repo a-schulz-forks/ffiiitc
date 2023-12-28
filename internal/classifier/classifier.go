@@ -30,12 +30,16 @@ func NewTrnClassifierFromFile(modelFile string, l *lgr.Logger) (*TrnClassifier, 
 }
 
 // init classifier with training data set
-func NewTrnClassifierWithTraining(dataSet TransactionDataSet, l *lgr.Logger) (*TrnClassifier, error) {
+func NewTrnClassifierWithTraining(catList []string, dataSet TransactionDataSet, l *lgr.Logger) (*TrnClassifier, error) {
 	trainingMap := convertDatasetToTrainingMap(dataSet)
-	catList := getCategoriesFromTrainingMap(trainingMap)
+	//catList := getCategoriesFromTrainingMap(trainingMap)
 	//catList := maps.Keys(trainingMap)
-	cls := bayesian.NewClassifier(catList...)
-	for _, cat := range catList {
+	var classList []bayesian.Class
+	for _, str := range catList {
+		classList = append(classList, bayesian.Class(str))
+	}
+	cls := bayesian.NewClassifier(classList...)
+	for _, cat := range classList {
 		cls.Learn(trainingMap[string(cat)], cat)
 	}
 	return &TrnClassifier{

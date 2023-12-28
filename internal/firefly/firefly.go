@@ -36,7 +36,7 @@ type FireFlyTransaction struct {
 
 type FireFlyTransactions struct {
 	FireWebHooks bool                 `json:"fire_webhooks"`
-	Id           string                  `json:"id"`
+	Id           string               `json:"id"`
 	Transactions []FireFlyTransaction `json:"transactions"`
 }
 
@@ -61,6 +61,18 @@ type FireFlyPagination struct {
 type FireFlyTransactionsResponse struct {
 	Data []FireFlyTransactionAttributes `json:"data"`
 	Meta FireFlyPagination              `json:"meta"`
+}
+
+type FireFlyCategory struct {
+	Name string `json:"name"`
+}
+
+type FireFlyCategoryAttributes struct {
+	Attributes FireFlyCategory `json:"attributes"`
+}
+type FireFlyCategoriesResponse struct {
+	Data []FireFlyCategoryAttributes `json:"data"`
+	Meta FireFlyPagination           `json:"meta"`
 }
 
 func NewFireFlyHttpClient(url, token string, timeout Timeout, l *lgr.Logger) *FireFlyHttpClient {
@@ -121,7 +133,7 @@ func (fc *FireFlyHttpClient) UpdateTransactionCategory(id, trans_id, category st
 
 	trn := FireFlyTransactions{
 		FireWebHooks: false,
-		Id: id,
+		Id:           id,
 		Transactions: []FireFlyTransaction{
 			{
 				TransactionID: trans_id,
@@ -195,6 +207,14 @@ func buildTransactionsDataset(data FireFlyTransactionsResponse) [][]string {
 			trn := []string{trnval.Category, trnval.Description}
 			res = append(res, trn)
 		}
+	}
+	return res
+}
+
+func buildCategoryList(data FireFlyCategoriesResponse) []string {
+	var res []string
+	for _, value := range data.Data {
+		res = append(res, value.Attributes.Name)
 	}
 	return res
 }
@@ -285,6 +305,49 @@ func (fc *FireFlyHttpClient) GetTransactionsDataset() ([][]string, error) {
 				return nil, err
 			}
 			resSlice = append(resSlice, buildTransactionsDataset(data)...)
+			fc.logger.Logf("INFO page %d...", pageIndex)
+			pageIndex++
+		}
+	}
+	return resSlice, err
+}
+
+func (fc *FireFlyHttpClient) GetCategories() ([]string, error) {
+	var pageIndex int
+	fc.logger.Logf("INFO get first page of categories")
+	res, err := fc.SendGetRequestWithToken(
+		fmt.Sprintf("%s/api/v1/categories?page=1", fc.AppURL),
+		fc.Token,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	var data FireFlyCategoriesResponse
+	err = json.Unmarshal(res, &data)
+	if err != nil {
+		return nil, err
+	}
+	resSlice := buildCategoryList(data)
+
+	fc.logger.Logf("INFO categories total pages: %d", data.Meta.Pagination.TotalPages)
+	if data.Meta.Pagination.TotalPages > 1 {
+		fc.logger.Logf("INFO categories more than 1 page available. iterating")
+		pageIndex = 2
+		for pageIndex <= data.Meta.Pagination.TotalPages {
+			res, err := fc.SendGetRequestWithToken(
+				fmt.Sprintf("%s/%s/categories?page=%d", fc.AppURL, fireflyAPIPrefix, pageIndex),
+				fc.Token,
+			)
+			if err != nil {
+				return nil, err
+			}
+			var data FireFlyCategoriesResponse
+			err = json.Unmarshal(res, &data)
+			if err != nil {
+				return nil, err
+			}
+			resSlice = append(resSlice, buildCategoryList(data)...)
 			fc.logger.Logf("INFO page %d...", pageIndex)
 			pageIndex++
 		}

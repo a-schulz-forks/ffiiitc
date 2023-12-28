@@ -41,8 +41,9 @@ func main() {
 		if err != nil || len(trnDataset) == 0 {
 			l.Logf("FATAL: %v", err)
 		}
+		catList, err := fc.GetCategories()
 		l.Logf("DEBUG data set:\n %v", trnDataset)
-		cls, err = classifier.NewTrnClassifierWithTraining(trnDataset, l)
+		cls, err = classifier.NewTrnClassifierWithTraining(catList, trnDataset, l)
 		if err != nil {
 			l.Logf("FATAL: %v", err)
 		}
@@ -70,7 +71,7 @@ func main() {
 	//r.AddRoute("/learn", h.HandleUpdateTransactionWebHook)
 
 	//run
-	port := 8080
+	port := 8081
 	l.Logf("INFO starting server on port %d", port)
 	err = r.Run(port)
 	if err != nil {

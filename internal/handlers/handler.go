@@ -100,7 +100,11 @@ func (wh *WebHookHandler) HandleForceTrainingModel(w http.ResponseWriter, r *htt
 		wh.Logger.Logf("ERROR: Error while getting transactions data\n %v", err)
 	} else {
 		wh.Logger.Logf("DEBUG Got training data\n %v", trnDataset)
-		cls, err := classifier.NewTrnClassifierWithTraining(trnDataset, wh.Logger)
+		catList, err := wh.FireflyClient.GetCategories()
+		if err != nil {
+			wh.Logger.Logf("ERROR: Error while getting categories data\n %v", err)
+		}
+		cls, err := classifier.NewTrnClassifierWithTraining(catList, trnDataset, wh.Logger)
 		if err != nil {
 			wh.Logger.Logf("ERROR creating classifier from dataset:\n %v", err)
 		} else {
