@@ -71,9 +71,8 @@ func main() {
 	//r.AddRoute("/learn", h.HandleUpdateTransactionWebHook)
 
 	//run
-	port := 8081
-	l.Logf("INFO starting server on port %d", port)
-	err = r.Run(port)
+	l.Logf("INFO starting server on port %d", cfg.ClassifierPort)
+	err = r.Run(cfg.ClassifierPort)
 	if err != nil {
 		panic(err)
 	}
