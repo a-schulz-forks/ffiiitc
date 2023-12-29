@@ -147,15 +147,18 @@ func (wh *WebHookHandler) HandleFineTuneModel(w http.ResponseWriter, r *http.Req
 	cls := wh.Classifier
 	for cat, features := range postData.Classes {
 		wh.Logger.Logf("INFO fine tune: (cat: %s) (features: %v)", cat, features)
-		cls.Classifier.Learn(features, bayesian.Class(cat))
-		wh.Logger.Logf("INFO fine tuning completed...")
-		wh.Logger.Logf("INFO saving data to model...")
-		err = cls.SaveClassifierToFile(config.ModelFile)
-		if err != nil {
-			wh.Logger.Logf("ERROR saving model to file:\n %v", err)
-		} else {
-			wh.Logger.Logf("INFO: fine tuning completed and model saved. Please restart 'ffiiitc' container")
+		for _, feature := range features {
+			f := classifier.ExtractTransactionFeatures(feature)
+			cls.Classifier.Learn(f, bayesian.Class(cat))
 		}
+	}
+	wh.Logger.Logf("INFO fine tuning completed...")
+	wh.Logger.Logf("INFO saving data to model...")
+	err = cls.SaveClassifierToFile(config.ModelFile)
+	if err != nil {
+		wh.Logger.Logf("ERROR saving model to file:\n %v", err)
+	} else {
+		wh.Logger.Logf("INFO: fine tuning completed and model saved. Please restart 'ffiiitc' container")
 	}
 
 	w.WriteHeader(http.StatusOK)

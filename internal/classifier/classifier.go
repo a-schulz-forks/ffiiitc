@@ -1,12 +1,14 @@
 package classifier
 
 import (
+	"github.com/go-pkgz/lgr"
+	"github.com/navossoc/bayesian"
+	"github.com/sugarme/tokenizer"
+	"github.com/sugarme/tokenizer/pretrained"
+	"log"
 	"regexp"
 	"slices"
 	"strings"
-
-	"github.com/go-pkgz/lgr"
-	"github.com/navossoc/bayesian"
 )
 
 // classifier implementation
@@ -29,7 +31,7 @@ func NewTrnClassifierFromFile(modelFile string, l *lgr.Logger) (*TrnClassifier, 
 	}, nil
 }
 
-// init classifier with training data set
+// NewTrnClassifierWithTraining init classifier with training data set
 func NewTrnClassifierWithTraining(catList []string, dataSet TransactionDataSet, l *lgr.Logger) (*TrnClassifier, error) {
 	trainingMap := convertDatasetToTrainingMap(dataSet)
 	//catList := getCategoriesFromTrainingMap(trainingMap)
@@ -58,7 +60,7 @@ func (tc *TrnClassifier) SaveClassifierToFile(modelFile string) error {
 // in: transaction description
 // out: likely transaction category
 func (tc *TrnClassifier) ClassifyTransaction(t string) string {
-	features := extractTransactionFeatures(t)
+	features := ExtractTransactionFeatures(t)
 	_, likely, _ := tc.Classifier.LogScores(features)
 	return string(tc.Classifier.Classes[likely])
 }
@@ -69,13 +71,7 @@ func (tc *TrnClassifier) ClassifyTransaction(t string) string {
 // out: cat, [features...]
 func getCategoryAndFeatures(data []string) (string, []string) {
 	category := data[0]
-	words := strings.Split(data[1], " ")
-	var features []string
-	for _, word := range words {
-		if (validFeature(word)) && (!slices.Contains(features, word)) {
-			features = append(features, word)
-		}
-	}
+	var features = ExtractTransactionFeatures(data[1])
 	return category, features
 
 }
@@ -87,12 +83,6 @@ func getCategoriesFromTrainingMap(training map[string][]string) []bayesian.Class
 		result = append(result, bayesian.Class(key))
 	}
 	return result
-}
-
-// checks if feature is valid
-// should be not single symbol and not pure number
-func validFeature(feature string) bool {
-	return len(feature) > 1 && !isStringNumeric(feature)
 }
 
 // checks if string is pure number: int or float
@@ -121,11 +111,33 @@ func convertDatasetToTrainingMap(dataSet TransactionDataSet) map[string][]string
 	return resultMap
 }
 
-// extract unique words from transaction description that are not numeric
-func extractTransactionFeatures(transaction string) []string {
+// ExtractTransactionFeatures extract unique words from transaction description that are not numeric
+func ExtractTransactionFeatures(transaction string) []string {
 	var transFeatures []string
-	features := strings.Split(transaction, " ")
+	configFile, err := tokenizer.CachedPath("bert-base-german-cased", "tokenizer.json")
+	if err != nil {
+		panic(err)
+	}
+
+	tk, err := pretrained.FromFile(configFile)
+	if err != nil {
+		panic(err)
+	}
+	en, err := tk.EncodeSingle(transaction)
+	if err != nil {
+		log.Fatal(err)
+	}
+	features := en.Tokens
 	for _, feature := range features {
+		feature = strings.TrimPrefix(feature, "##")
+		// Find the index of "DATUM" in the string
+		index := strings.Index(feature, "DATUM")
+
+		// If "DATUM" is found, trim everything from that point onward
+		if index != -1 {
+			feature = strings.TrimSpace(feature[:index])
+		}
+
 		if (len(feature) > 1) && (!slices.Contains(transFeatures, feature)) && (!isStringNumeric(feature)) {
 			transFeatures = append(transFeatures, feature)
 		}
